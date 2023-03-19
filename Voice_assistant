@@ -1,0 +1,44 @@
+import speech_recognition as sr
+r = sr.Recognizer()
+#############################
+import tkinter as tk
+from tkinter import ttk
+#############################
+import time
+############################
+import textwrap
+#############################
+root = tk.Tk()
+root.configure(bg = "#c5dea4")
+root.title("Voice assitant")
+root.geometry("400x300+300+300")
+root.resizable(False, False)
+#############################
+root.columnconfigure(1, weight = 1)
+root.rowconfigure(1, weight = 1)
+#############################
+
+microphone_icon = tk.PhotoImage(file ="C:/Users/dovyd/OneDrive/Desktop/mic.png" )
+
+
+button = ttk.Button(root, text = "Listen", image = microphone_icon, compound = tk.LEFT, command = lambda: Button_click())
+button.pack(ipadx = 4, ipady = 7)
+button.grid(column = 1, row = 2, pady = 60, sticky = tk.N)
+
+label = tk.Label(root, text = "", font = ("Comic Sans", 18), bg = root["background"])
+label.grid(column = 1, row = 1)
+
+def Button_click():    
+    label.config(text = "Listening...", fg = "#3d3803", bg = root["background"])
+    root.update()
+    with sr.Microphone() as source:
+        audio = r.listen(source, phrase_time_limit = 7)
+        try:
+            transcript = r.recognize_google(audio)
+            transcript_print = textwrap.fill("You said: " + transcript, 35)
+            label.config(text = transcript_print, fg = "#3d3803", bg = root["background"])
+        except sr.UnknownValueError:
+            label.config(text = "I'm sorry, but I could not hear you")
+root.mainloop()
+
+
