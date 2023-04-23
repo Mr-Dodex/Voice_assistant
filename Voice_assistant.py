@@ -1,0 +1,140 @@
+import speech_recognition as sr
+r = sr.Recognizer()
+############################
+import requests
+from bs4 import BeautifulSoup
+############################
+import tkinter as tk
+from tkinter import ttk
+from tkinter.messagebox import showinfo
+############################
+import os
+############################
+import datetime
+############################
+import textwrap
+############################
+root = tk.Tk()
+root.configure(bg = "#c5dea4")
+root.title("Voice assitant")
+root.geometry("400x300+300+300")
+root.resizable(False, False)
+#############################
+root.columnconfigure(1, weight = 1)
+root.rowconfigure(1, weight = 1)
+#############################
+temper_url = "https://www.timeanddate.com/worldclock/lithuania/vilnius"
+html_content_temper = requests.get(temper_url).content
+soup = BeautifulSoup(html_content_temper, "html.parser")
+############################
+cur_lang = "English"
+mic_path = os.path.join(os.path.dirname(__file__), 'mic.png')
+microphone_icon = tk.PhotoImage(file = mic_path)
+quest_path = os.path.join(os.path.dirname(__file__), 'question_mark.png')
+question_icon = tk.PhotoImage(file = quest_path)
+#############################
+langs = ("English", "Lietuvių")
+langs_var = tk.StringVar(value=langs)
+lang_option_menu = ttk.OptionMenu(root, langs_var, langs[0], *langs, command= lambda selected_value: change_lang(selected_value))
+lang_option_menu.grid(column=1, row=0, sticky=tk.W)
+lang_option_menu.configure(width = 7)
+#############################
+main_button = ttk.Button(root, text = "Listen", image = microphone_icon, compound = tk.LEFT, command = lambda: Button_click_en())
+main_button.grid(column = 1, row = 2, pady = 60, sticky = tk.N)
+
+help_button = tk.Button(root, image = question_icon, command = lambda: help_window_open_en(), borderwidth = 0, bg = root["background"])
+help_button.grid(column = 2, row = 0, sticky = tk.NE)
+
+
+def help_window_open_en():
+    showinfo("Commands", "Available commands: \n\n \"Calculate\" + arithmetical problem : \n displays solution to given problem. \n\n \"Current time\" : \n displays the current time and date \n\n \"Current temperature\" : \n returns the current temperature", icon="question")
+def help_window_open_lt():
+    showinfo("Komandos", "Galimos komandos: \n\n \"Apskaičiuoti\" + aritmetinis veiksmas : \n grąžina atsakymą į užduotą klausimą. \n\n \"Dabartinis laikas\" : \n grąžina dabartinį laiką ir datą \n\n \"Dabartinė temperatūra\" : \n grąžina dabartinę temperatūrą", icon="question")
+
+def change_lang(selected_value):
+    global cur_lang
+    cur_lang = selected_value
+    if cur_lang == "English":
+        main_button.configure(text = "Listen", command = Button_click_en)
+        help_button.configure(command = lambda: help_window_open_en())
+    elif cur_lang == "Lietuvių":
+        main_button.configure(text = "Klausyti", command = Button_click_lt)
+        help_button.configure(command = lambda: help_window_open_lt())
+    label.config(text = "")
+
+
+label = tk.Label(root, text = "", font = ("Comic Sans", 18), bg = root["background"])
+label.grid(column = 1, row = 1)
+
+def Button_click_lt():    
+    label.config(text = "Klausau...", fg = "#3d3803", bg = root["background"])
+    root.update()
+    with sr.Microphone() as source:
+        audio = r.listen(source)
+        try:
+            transcript = r.recognize_google(audio, language = "lt-LT")
+            arithmetic_replacements = {"plius": "+", "minus": "-", "kart": "*", "padalinta iš": "/", "padalinti iš": "/", 
+        "dalinti":"/", "du": "2","nulis": "0", "vienas": "1", "du": "2", "trys": "3", "keturi": "4", "penki": "5",
+        "šeši": "6", "septyni": "7","aštuoni": "8", "devyni": "9", "ų":""}
+            for old_word, new_word in arithmetic_replacements.items():
+                    transcript = transcript.replace(old_word, new_word)
+            transcript_wrap = textwrap.fill("Jūs pasakėte: " + transcript, 34)
+            if "temperatūra" in transcript.split():
+                div_element_temper = soup.find("div", {"id": "wt-tp"})
+                current_temper = div_element_temper.text.strip()
+                transcript_wrap +="\n\n" + "Dabartinė temperatūra: " + current_temper
+            if "dabartinis" in transcript.split() and "laikas" in transcript.split():
+                now = datetime.datetime.now()
+                current_date = now.strftime("%Y-%m-%d")
+                current_time = now.strftime("%H:%M")
+                transcript_wrap +="\n\n" + "Šiandienos data: " + current_date + "\n\n" + "Dabartinis laikas: " + current_time
+            if "apskaičiuoti" in transcript or "skaičiuoti" in transcript.split():
+                new_transcript = transcript.replace("apskaičiuoti", "")
+                try:
+                    result = textwrap.fill(str(eval(new_transcript)))
+                    transcript_wrap += "\n\n" + "Atsakymas = " + result
+                except ZeroDivisionError:
+                    zero_division_error_wrap = textwrap.fill("\n\nKlaida: dalyba iš nulio", 34)
+                    transcript_wrap += "\n\n" + zero_division_error_wrap
+                except (SyntaxError, TypeError):
+                    syntax_error_wrap = textwrap.fill("\n\n Klaida: neteisinga matematinė išraiška", 34)
+                    transcript_wrap += "\n\n" + syntax_error_wrap
+            label.config(text = transcript_wrap, fg = "#3d3803", bg = root["background"])
+        except sr.UnknownValueError:
+            label.config(text = "Atleiskite, tačiau aš jūsų neišgirdau.")
+
+def Button_click_en():    
+    label.config(text = "Listening...", fg = "#3d3803", bg = root["background"])
+    root.update()
+    with sr.Microphone() as source:
+        audio = r.listen(source)
+        try:
+            transcript = r.recognize_google(audio, language = "en-US")
+            transcript_wrap = textwrap.fill("You said: " + transcript, 34)
+            if "temperature" in transcript.split():
+                div_element_temper = soup.find("div", {"id": "wt-tp"})
+                current_temper = div_element_temper.text.strip()
+                transcript_wrap +="\n\n" + "Current temperature: " + current_temper
+            if "current" in transcript.split() and "time" in transcript.split():
+                now = datetime.datetime.now()
+                current_date = now.strftime("%Y - %m - %d")
+                current_time = now.strftime("%H:%M")
+                transcript_wrap +="\n\n" + "Current date: " + current_date + "\n\n" + "Current time: " + current_time
+            if "calculate" in transcript.split():
+                new_transcript = transcript.replace("calculate", "")
+                try:
+                    result = textwrap.fill(str(eval(new_transcript)))
+                    transcript_wrap += "\n\n" + "Result = " + result
+                except ZeroDivisionError:
+                    zero_division_error_wrap = textwrap.fill("\n\nError: division by zero", 35)
+                    transcript_wrap += "\n\n" + zero_division_error_wrap
+                except SyntaxError:
+                    syntax_error_wrap = textwrap.fill("\n\n Error: invalid expression")
+                    transcript_wrap += "\n\n" + syntax_error_wrap
+            label.config(text = transcript_wrap, fg = "#3d3803", bg = root["background"])
+        except sr.UnknownValueError:
+            label.config(text = "I'm sorry, but I could not hear you")
+
+root.mainloop()
+
+
